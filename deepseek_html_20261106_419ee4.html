@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>نظام إدارة الاستمارات والمتابعة اليومية</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#0f172a;--bg2:#0b1220;--card:#1e293b;--card2:#273449;--text:#e2e8f0;--text2:#cbd5e1;--muted:#94a3b8;--accent:#0ea5e9;--accent2:#0284c7;--success:#10b981;--success-bg:rgba(16,185,129,.15);--warning:#f59e0b;--warning-bg:rgba(245,158,11,.15);--danger:#ef4444;--danger-bg:rgba(239,68,68,.15);--border:#334155;--border2:#475569}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--text);display:flex;direction:rtl;overflow:hidden}
+.sidebar{width:250px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;flex-shrink:0}
+.brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.brand h1{font-size:1.1rem;color:var(--accent);margin-bottom:4px}
+.brand p{font-size:.75rem;color:var(--muted)}
+.nav{display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto}
+.nav a{padding:12px 20px;color:var(--text2);text-decoration:none;font-size:.9rem;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all .15s;border-right:3px solid transparent}
+.nav a:hover{background:var(--card);color:var(--text)}
+.nav a.active{background:var(--card);color:var(--accent);border-right-color:var(--accent);font-weight:600}
+.nav .icon{width:20px;text-align:center}
+.main{flex:1;overflow-y:auto;padding:24px}
+.page-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.page-head h2{font-size:1.5rem}
+.page-head .sub{color:var(--muted);font-size:.85rem;margin-top:4px}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;right:0;width:4px;height:100%;background:var(--accent)}
+.kpi.success::before{background:var(--success)}
+.kpi.warning::before{background:var(--warning)}
+.kpi.danger::before{background:var(--danger)}
+.kpi .label{color:var(--muted);font-size:.8rem;margin-bottom:8px}
+.kpi .value{font-size:1.6rem;font-weight:700;direction:ltr;text-align:right}
+.kpi .hint{font-size:.72rem;color:var(--muted);margin-top:6px}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:auto;max-height:calc(100vh - 220px)}
+table{width:100%;border-collapse:collapse;font-size:.82rem;white-space:nowrap}
+thead th{position:sticky;top:0;background:var(--card2);padding:12px 10px;text-align:right;font-weight:600;border-bottom:2px solid var(--border);z-index:1;font-size:.8rem}
+tbody td{padding:10px;border-bottom:1px solid var(--border);color:var(--text2)}
+tbody tr:hover{background:rgba(14,165,233,.05)}
+.cell-num{direction:ltr;text-align:right;font-variant-numeric:tabular-nums}
+.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:600}
+.badge-success{background:var(--success-bg);color:var(--success)}
+.badge-warning{background:var(--warning-bg);color:var(--warning)}
+.badge-danger{background:var(--danger-bg);color:var(--danger)}
+.badge-info{background:rgba(14,165,233,.15);color:var(--accent)}
+.badge-muted{background:var(--card2);color:var(--muted)}
+.btn{padding:9px 16px;border:none;border-radius:8px;background:var(--accent);color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:var(--accent2);transform:translateY(-1px)}
+.btn-secondary{background:var(--card2);color:var(--text);border:1px solid var(--border2)}
+.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:var(--danger)}
+.btn-success{background:var(--success)}
+.btn-sm{padding:5px 10px;font-size:.75rem}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.toolbar input[type=text],.toolbar select,.toolbar input[type=month],.toolbar input[type=date]{padding:9px 14px;border-radius:8px;border:1px solid var(--border2);background:var(--card);color:var(--text);font-size:.85rem;font-family:inherit;min-width:140px}
+.spacer{flex:1}
+.page{display:none}
+.page.active{display:block}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:14px;max-width:1100px;width:100%;max-height:90vh;display:flex;flex-direction:column}
+.modal-head{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-head h3{font-size:1.1rem}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer}
+.modal-body{padding:20px 22px;overflow-y:auto}
+.modal-foot{padding:14px 22px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-field.full{grid-column:1/-1}
+.form-field label{font-size:.8rem;color:var(--muted);font-weight:600}
+.form-field input,.form-field select{padding:9px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:.85rem;font-family:inherit}
+.form-field input:focus,.form-field select:focus{outline:none;border-color:var(--accent)}
+.toast-container{position:fixed;bottom:20px;left:20px;display:flex;flex-direction:column;gap:10px;z-index:200}
+.toast{padding:12px 18px;border-radius:10px;background:var(--card);border:1px solid var(--border2);font-size:.85rem;box-shadow:0 8px 20px rgba(0,0,0,.4);max-width:380px}
+.toast.success{border-right:4px solid var(--success)}
+.toast.warning{border-right:4px solid var(--warning)}
+.toast.danger{border-right:4px solid var(--danger)}
+.toast.info{border-right:4px solid var(--accent)}
+.alert-banner{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:.85rem}
+.alert-warning{background:var(--warning-bg);color:var(--warning);border:1px solid rgba(245,158,11,.3)}
+.alert-danger{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+.alert-info{background:rgba(14,165,233,.1);color:var(--accent);border:1px solid rgba(14,165,233,.3)}
+.empty{padding:40px;text-align:center;color:var(--muted);font-size:.9rem}
+.active-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.active-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+.active-card h4{font-size:1rem;margin-bottom:12px;color:var(--accent)}
+.active-card ol{list-style:none;padding:0;counter-reset:rank}
+.active-card li{counter-increment:rank;padding:10px 0;border-bottom:1px solid var(--border);font-size:.9rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.active-card li:last-child{border-bottom:none}
+.active-card li::before{content:counter(rank);background:var(--accent);color:#fff;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.75rem;flex-shrink:0}
+.active-card li .metric{color:var(--muted);font-size:.75rem;margin-right:auto}
+.active-card li .plant-tag{background:rgba(14,165,233,.15);color:var(--accent);padding:2px 8px;border-radius:6px;font-size:.72rem;margin-right:6px}
+.tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.tab-btn{padding:10px 18px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text2);cursor:pointer;font-size:.85rem;font-family:inherit}
+.tab-btn:hover{background:var(--card2);color:var(--text)}
+.tab-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
+.filter-box{background:var(--card);padding:14px;border-radius:10px;border:1px solid var(--border);margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.filter-box label{font-size:.78rem;color:var(--muted);font-weight:600}
+.filter-box input,.filter-box select{padding:7px 12px;border-radius:7px;border:1px solid var(--border2);background:var(--bg2);color:var(--text);font-size:.82rem;font-family:inherit}
+.import-preview{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-top:14px;max-height:320px;overflow:auto}
+.import-preview table{font-size:.78rem;width:100%}
+.import-preview th,.import-preview td{padding:6px 8px}
+.import-summary{display:flex;gap:14px;flex-wrap:wrap;margin:12px 0;padding:12px;background:var(--bg2);border-radius:8px;font-size:.82rem}
+.import-summary span{color:var(--muted)}
+.import-summary b{color:var(--text)}
+.chk{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
+.upload-zone{border:2px dashed var(--border2);border-radius:12px;padding:40px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg2)}
+.upload-zone:hover{border-color:var(--accent);background:rgba(14,165,233,.05)}
+.upload-zone .icon{font-size:2.5rem;margin-bottom:12px}
+.upload-zone h4{font-size:1rem;margin-bottom:6px}
+.upload-zone p{color:var(--muted);font-size:.82rem}
+@media (max-width:768px){
+  body{flex-direction:column}
+  .sidebar{width:100%;flex-direction:row;padding:0;border-left:none;border-bottom:1px solid var(--border);overflow-x:auto}
+  .brand{padding:12px;border-left:1px solid var(--border);border-bottom:none;margin:0;min-width:160px}
+  .nav{flex-direction:row;overflow-x:auto;padding:8px}
+  .nav a{padding:8px 12px;border-right:none;border-bottom:3px solid transparent;white-space:nowrap}
+  .nav a.active{border-bottom-color:var(--accent)}
+  .main{padding:14px}
+  .form-grid{grid-template-columns:1fr}
+  .active-cards{grid-template-columns:1fr}
+}
+@media print{
+  .sidebar,.nav,.toolbar,.btn,.toast-container,.modal-overlay,.filter-box,.tabs,.page-head .toolbar{display:none !important}
+  body{background:#fff;color:#000;display:block;overflow:visible;height:auto}
+  .main{padding:10px;overflow:visible}
+  .page{display:none !important}
+  .page.active{display:block !important}
+  .kpi,.table-wrap,.active-card{background:#fff !important;border:1px solid #999 !important;max-height:none !important;overflow:visible !important}
+  th,td{border:1px solid #999 !important;color:#000 !important;background:#fff !important;padding:5px !important}
+  thead th{background:#eee !important}
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="brand"><h1>📊 نظام الاستمارات</h1><p>المتابعة اليومية والاستقطاعات</p></div>
+  <nav class="nav">
+    <a data-page="dashboard" class="active"><span class="icon">🏠</span> لوحة التحكم</a>
+    <a data-page="quotas"><span class="icon">📅</span> المعامل والحصص</a>
+    <a data-page="forms"><span class="icon">📋</span> سجل الاستمارات</a>
+    <a data-page="movements"><span class="icon">🚚</span> الحركة اليومية</a>
+    <a data-page="monitoring"><span class="icon">📈</span> المتابعة الشهرية</a>
+    <a data-page="reports"><span class="icon">📑</span> التقارير</a>
+    <a data-page="tests"><span class="icon">🧪</span> الاختبارات</a>
+  </nav>
+</aside>
+
+<main class="main">
+  <section id="page-dashboard" class="page active"></section>
+  <section id="page-quotas" class="page"></section>
+  <section id="page-forms" class="page"></section>
+  <section id="page-movements" class="page"></section>
+  <section id="page-monitoring" class="page"></section>
+  <section id="page-reports" class="page"></section>
+  <section id="page-tests" class="page"></section>
+</main>
+
+<div class="toast-container" id="toasts"></div>
+<div id="modal-root"></div>
+
+<script>
+'use strict';
+
+const STORAGE_KEY = 'excel_report_v5';
+
+const DEFAULTS = {
+  settings: {
+    plants: ['معمل أ','معمل ب','معمل ج'],
+    items: ['مادة أولية','مخلفات تشغيل','مادة مساعدة','تصدير','كبريت','أسفلت','زيت الوقود الثقيل','وقود الديزل','فحم الكوك','ماستك','فلانكوت'],
+    units: ['طن','م3','كجم'],
+    transferStates: ['تم التحويل','تم القطع','قيد الانتظار'],
+    remainderActions: ['استرجاع','تجهيز لاحقاً'],
+    quotaTypes: ['ثابتة','تجريبية (3 أشهر)'],
+    weightItems: ['تصدير','كبريت','أسفلت','زيت الوقود الثقيل','وقود الديزل'],
+    provinces: ['البصرة','بغداد','كربلاء','النجف','ذي قار','ميسان','واسط','بابل']
+  },
+  quotas: [
+    {plant:'معمل أ', item:'مادة أولية', unit:'طن', daily:10, monthly:300, type:'ثابتة', startDate:'', endDate:'', notes:''},
+    {plant:'معمل أ', item:'مخلفات تشغيل', unit:'طن', daily:5, monthly:150, type:'تجريبية (3 أشهر)', startDate:'2026-11-01', endDate:'2027-01-31', notes:''},
+    {plant:'معمل ب', item:'مادة أولية', unit:'م3', daily:20, monthly:600, type:'ثابتة', startDate:'', endDate:'', notes:''},
+    {plant:'معمل ب', item:'مخلفات تشغيل', unit:'م3', daily:8, monthly:240, type:'ثابتة', startDate:'', endDate:'', notes:''},
+    {plant:'معمل ج', item:'مادة أولية', unit:'طن', daily:15, monthly:450, type:'تجريبية (3 أشهر)', startDate:'2026-11-01', endDate:'2027-01-31', notes:''},
+    {plant:'معمل ج', item:'مادة مساعدة', unit:'كجم', daily:100, monthly:3000, type:'ثابتة', startDate:'', endDate:'', notes:''}
+  ],
+  forms: [
+    {number:'V-001', date:'2026-11-01', orderNumber:'PO-1001', orderDate:'2026-10-28', price:5000, transferState:'تم التحويل', branch:'الفرع الرئيسي', transporter:'علي محمد', site:'موقع أ', item:'مادة أولية', purpose:'مادة أولية', qty:60, remainderAction:'استرجاع', notes:'', plant:'معمل أ'},
+    {number:'V-002', date:'2026-11-02', orderNumber:'PO-1002', orderDate:'2026-10-30', price:3000, transferState:'تم القطع', branch:'الفرع الجنوبي', transporter:'سعد أحمد', site:'موقع ب', item:'مخلفات تشغيل', purpose:'مخلفات تشغيل', qty:25, remainderAction:'تجهيز لاحقاً', notes:'', plant:'معمل أ'},
+    {number:'V-002B', date:'2026-11-02', orderNumber:'PO-1002B', orderDate:'2026-10-30', price:2800, transferState:'تم التحويل', branch:'الفرع الجنوبي', transporter:'سعد أحمد', site:'موقع ب', item:'مخلفات تشغيل', purpose:'مخلفات تشغيل', qty:200, remainderAction:'تجهيز لاحقاً', notes:'', plant:'معمل أ'},
+    {number:'V-003', date:'2026-11-05', orderNumber:'PO-1003', orderDate:'2026-11-01', price:4500, transferState:'قيد الانتظار', branch:'الفرع الشمالي', transporter:'كريم جبار', site:'موقع ج', item:'مادة أولية', purpose:'مادة أولية', qty:400, remainderAction:'استرجاع', notes:'', plant:'معمل أ'},
+    {number:'V-004', date:'2026-11-01', orderNumber:'PO-1004', orderDate:'2026-10-29', price:2500, transferState:'تم التحويل', branch:'الفرع الرئيسي', transporter:'حيدر سالم', site:'موقع د', item:'مادة أولية', purpose:'مادة أولية', qty:600, remainderAction:'استرجاع', notes:'', plant:'معمل ب'},
+    {number:'V-005', date:'2026-11-01', orderNumber:'PO-1005', orderDate:'2026-10-29', price:1800, transferState:'تم التحويل', branch:'الفرع الرئيسي', transporter:'حيدر سالم', site:'موقع د', item:'مخلفات تشغيل', purpose:'مخلفات تشغيل', qty:400, remainderAction:'استرجاع', notes:'', plant:'معمل ب'},
+    {number:'V-006', date:'2026-11-01', orderNumber:'PO-1006', orderDate:'2026-10-29', price:3200, transferState:'تم التحويل', branch:'الفرع الرئيسي', transporter:'عمار كاظم', site:'موقع هـ', item:'مادة أولية', purpose:'مادة أولية', qty:450, remainderAction:'استرجاع', notes:'', plant:'معمل ج'},
+    {number:'V-007', date:'2026-11-01', orderNumber:'PO-1007', orderDate:'2026-10-29', price:900, transferState:'تم التحويل', branch:'الفرع الرئيسي', transporter:'عمار كاظم', site:'موقع هـ', item:'مادة مساعدة', purpose:'مادة مساعدة', qty:3000, remainderAction:'استرجاع', notes:'', plant:'معمل ج'}
+  ],
+  movements: [
+    {date:'2026-11-01', plant:'معمل أ', item:'مادة أولية', basin:'', car:'53267/11T', naturalQty:36, standardQty:34.2, weight:34.5, driver:'احمد عبد الكاظم', docNumber:'A 192 46536', loadDate:'2026-11-01', province:'البصرة', beneficiary:'المنفذ الجنوبي البحري', notes:''},
+    {date:'2026-11-02', plant:'معمل أ', item:'مادة أولية', basin:'', car:'53268/11T', naturalQty:32, standardQty:30.4, weight:30.6, driver:'احمد عبد الكاظم', docNumber:'A 192 46537', loadDate:'2026-11-02', province:'البصرة', beneficiary:'المنفذ الجنوبي البحري', notes:''},
+    {date:'2026-11-03', plant:'معمل أ', item:'مخلفات تشغيل', basin:'', car:'53269/11T', naturalQty:28, standardQty:26.6, weight:26.8, driver:'محمد علي حسن', docNumber:'A 192 46538', loadDate:'2026-11-03', province:'البصرة', beneficiary:'المنفذ الجنوبي البحري', notes:''},
+    {date:'2026-11-04', plant:'معمل أ', item:'مادة أولية', basin:'', car:'53275/11T', naturalQty:35, standardQty:33.25, weight:33.5, driver:'محمد علي حسن', docNumber:'A 192 46544', loadDate:'2026-11-04', province:'البصرة', beneficiary:'المنفذ الجنوبي البحري', notes:''},
+    {date:'2026-11-01', plant:'معمل ب', item:'مادة أولية', basin:'', car:'53270/11T', naturalQty:45, standardQty:42.75, weight:43, driver:'علي حسين كريم', docNumber:'A 192 46539', loadDate:'2026-11-01', province:'بغداد', beneficiary:'المنفذ الشمالي', notes:''},
+    {date:'2026-11-02', plant:'معمل ب', item:'مخلفات تشغيل', basin:'', car:'53271/11T', naturalQty:42, standardQty:39.9, weight:40.1, driver:'علي حسين كريم', docNumber:'A 192 46540', loadDate:'2026-11-02', province:'بغداد', beneficiary:'المنفذ الشمالي', notes:''},
+    {date:'2026-11-03', plant:'معمل ب', item:'مادة أولية', basin:'', car:'53272/11T', naturalQty:47, standardQty:44.65, weight:45, driver:'كرار عباس', docNumber:'A 192 46541', loadDate:'2026-11-03', province:'بغداد', beneficiary:'المنفذ الشمالي', notes:''},
+    {date:'2026-11-04', plant:'معمل ب', item:'مخلفات تشغيل', basin:'', car:'53276/11T', naturalQty:38, standardQty:36.1, weight:36.3, driver:'كرار عباس', docNumber:'A 192 46545', loadDate:'2026-11-04', province:'بغداد', beneficiary:'المنفذ الشمالي', notes:''},
+    {date:'2026-11-01', plant:'معمل ج', item:'مادة أولية', basin:'', car:'53273/11T', naturalQty:28, standardQty:26.6, weight:26.8, driver:'حسين علي', docNumber:'A 192 46542', loadDate:'2026-11-01', province:'كربلاء', beneficiary:'الفرع الرئيسي', notes:''},
+    {date:'2026-11-02', plant:'معمل ج', item:'مادة مساعدة', basin:'', car:'53274/11T', naturalQty:250, standardQty:237.5, weight:239, driver:'حسين علي', docNumber:'A 192 46543', loadDate:'2026-11-02', province:'كربلاء', beneficiary:'الفرع الرئيسي', notes:''}
+  ],
+  monitorMonth: '2026-11'
+};
+
+let DB;
+let formsFilter = {search:'', plant:''};
+let movFilter = {search:'', plant:''};
+let reportFilter = {from:'', to:'', plant:'', item:'', province:'', driver:''};
+let reportTab = 'plant';
+let importState = null;
+
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+function loadDB(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw){ DB = JSON.parse(raw); if(!DB || !DB.settings) throw new Error('bad'); }
+    else DB = clone(DEFAULTS);
+  } catch(e){ DB = clone(DEFAULTS); }
+  if(!DB.settings.provinces) DB.settings.provinces = DEFAULTS.settings.provinces.slice();
+  DB.forms = DB.forms || [];
+  DB.movements = DB.movements || [];
+  DB.quotas = DB.quotas || [];
+  recalcDeductions();
+  saveDB();
+}
+
+function saveDB(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); } catch(e){ console.warn(e); }
+}
+
+function recalcDeductions(){
+  DB.forms.forEach(f => { f.deducted = 0; f.remainder = Number(f.qty)||0; f.deductValue = 0; });
+  const sorted = DB.movements.slice().sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+  sorted.forEach(m => {
+    const isW = DB.settings.weightItems.indexOf(m.item) !== -1;
+    const amt = isW ? Number(m.weight) : Number(m.naturalQty);
+    m.deductQty = amt || 0;
+    m.usedForms = '';
+    m.remaining = 0;
+    m.alert = '';
+    if(!m.plant || !m.item || !(amt > 0)) return;
+    let rem = amt;
+    const plantForms = DB.forms.filter(f => f.plant === m.plant && f.remainder > 0.0001).sort((a,b) => String(a.date||'').localeCompare(String(b.date||'')));
+    const used = [];
+    for(let i = 0; i < plantForms.length; i++){
+      const f = plantForms[i];
+      if(rem <= 0.0001) break;
+      const take = Math.min(f.remainder, rem);
+      f.remainder = Number((f.remainder - take).toFixed(4));
+      f.deducted  = Number((f.deducted  + take).toFixed(4));
+      rem         = Number((rem - take).toFixed(4));
+      used.push(f.number);
+    }
+    m.usedForms = used.join(' + ');
+    m.remaining = rem;
+    if(rem > 0.0001) m.alert = '⚠️ لا يوجد رصيد استمارة كافٍ للمعمل: ' + m.plant;
+  });
+  DB.forms.forEach(f => {
+    f.deductValue = Number(((Number(f.price)||0) * f.deducted).toFixed(2));
+    if((Number(f.qty)||0) > 0 && f.remainder <= 0.0001) f.status = 'منتهية';
+    else if(f.deducted > 0.0001) f.status = 'قيد الاستهلاك';
+    else f.status = 'نشطة';
+    f.alert = f.status === 'منتهية' ? '⚠️ انتهت كمية الاستمارة — يجب إدخال استمارة جديدة لنفس المعمل' : '';
+  });
+}
+
+function fmt(n,d){ if(d===undefined) d=2; if(n===''||n===null||n===undefined||isNaN(n)) return '-'; return Number(n).toLocaleString('en-US',{maximumFractionDigits:d}); }
+function today(){ return new Date().toISOString().slice(0,10); }
+function monthOf(s){ return String(s||'').slice(0,7); }
+function daysInMonth(ym){ const p = String(ym).split('-').map(Number); return new Date(p[0],p[1],0).getDate() || 30; }
+
+function toast(msg, type){
+  type = type || 'info';
+  const c = document.getElementById('toasts');
+  if(!c) return;
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(() => t.remove(), 300); }, 4000);
+}
+
+function badge(txt, kind){
+  const map = {'نشطة':'success','قيد الاستهلاك':'warning','منتهية':'danger','تم التحويل':'success','تم القطع':'warning','قيد الانتظار':'danger','طبيعي':'success','اقتراب الحد':'warning','تجاوز':'danger'};
+  return '<span class="badge badge-' + (kind||map[txt]||'muted') + '">' + (txt||'-') + '</span>';
+}
+
+function optHTML(list, val){
+  return list.map(v => '<option value="' + v + '"' + (v === val ? ' selected' : '') + '>' + v + '</option>').join('');
+}
+
+function setupNav(){
+  document.querySelectorAll('.nav a').forEach(a => {
+    a.onclick = () => {
+      document.querySelectorAll('.nav a').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      a.classList.add('active');
+      const p = document.getElementById('page-' + a.dataset.page);
+      if(p) p.classList.add('active');
+      renderAll();
+    };
+  });
+}
+
+function openModal(title, body, onSave){
+  document.getElementById('modal-root').innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+      '<div class="modal">' +
+        '<div class="modal-head"><h3>' + title + '</h3><button class="modal-close" onclick="closeModal()">×</button></div>' +
+        '<div class="modal-body">' + body + '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn btn-secondary" onclick="closeModal()">إلغاء</button>' +
+          '<button class="btn" id="modal-save">حفظ</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.getElementById('modal-save').onclick = onSave;
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML = ''; }
+
+function downloadBlob(blob, filename){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 200);
+}
+
+function exportExcel(sheets, filename){
+  if(typeof XLSX !== 'undefined' && XLSX && XLSX.utils){
+    try {
+      const wb = XLSX.utils.book_new();
+      sheets.forEach(s => {
+        const ws = XLSX.utils.aoa_to_sheet(s.aoa);
+        if(s.aoa[0]) ws['!cols'] = s.aoa[0].map(() => ({wch:18}));
+        XLSX.utils.book_append_sheet(wb, ws, String(s.name).replace(/[\\\/\?\*\[\]:]/g,'_').slice(0,31));
+      });
+      XLSX.writeFile(wb, filename + '.xlsx');
+      toast('✅ تم تصدير Excel', 'success');
+      return;
+    } catch(e){ console.error(e); }
+  }
+  // fallback
+  let html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><style>td,th{border:1px solid #999;padding:4px;font-family:Arial}</style></head><body>';
+  sheets.forEach(s => {
+    html += '<h3>' + s.name + '</h3><table dir="rtl">';
+    s.aoa.forEach((row, ri) => {
+      html += '<tr>' + row.map(c => '<' + (ri===0?'th':'td') + '>' + (c===null||c===undefined?'':String(c)) + '</' + (ri===0?'th':'td') + '>').join('') + '</tr>';
+    });
+    html += '</table><br>';
+  });
+  downloadBlob(new Blob(['\uFEFF' + html], {type:'application/vnd.ms-excel;charset=utf-8'}), filename + '.xls');
+  toast('✅ تم التصدير (نسخة Excel)', 'success');
+}
+
+function printContent(title, contentHTML, subtitle){
+  const w = window.open('', '_blank', 'width=1000,height=700');
+  if(!w){ toast('يرجى السماح بالنوافذ المنبثقة', 'warning'); return; }
+  w.document.write('<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>' + title + '</title><style>' +
+    '@page{margin:15mm} body{font-family:Tahoma,Arial;padding:20px;color:#111;line-height:1.5}' +
+    '.print-header{border-bottom:3px solid #0ea5e9;padding-bottom:12px;margin-bottom:20px}' +
+    '.print-header h1{font-size:22px;margin:0 0 6px} .meta{font-size:12px;color:#64748b}' +
+    'table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px}' +
+    'th,td{border:1px solid #94a3b8;padding:8px;text-align:right}' +
+    'th{background:#e2e8f0} tbody tr:nth-child(even){background:#f8fafc}' +
+    'h2{font-size:16px;margin:24px 0 10px;padding-bottom:6px;border-bottom:2px solid #cbd5e1}' +
+    '.footer{margin-top:30px;padding-top:12px;border-top:1px solid #cbd5e1;font-size:11px;color:#64748b;text-align:center}' +
+    '</style></head><body><div class="print-header"><h1>' + title + '</h1><div class="meta">' + (subtitle||'') + ' | ' + new Date().toLocaleString('ar-EG') + '</div></div>' + contentHTML + '<div class="footer">تقرير من نظام إدارة الاستمارات</div></body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(() => { try{ w.print(); }catch(e){} }, 400);
+}
+
+function printPage(){ window.print(); }
+
+/* ============================================================
+   تصدير كامل
+   ============================================================ */
+function exportFullDB(){
+  const sheets = [
+    {name:'الحركة اليومية', aoa:[
+      ['التاريخ','المعمل','الصنف','السيارة','الكمية الطبيعية','الكمية القياسية','الوزن','الفرق','السائق','رقم المستند','المحافظة','الجهة','الاستقطاع','الاستمارات','متبقي','تنبيه'],
+      ...DB.movements.map(m => [m.date,m.plant,m.item,m.car,m.naturalQty,m.standardQty,m.weight,(Number(m.naturalQty)||0)-(Number(m.standardQty)||0),m.driver,m.docNumber,m.province,m.beneficiary,m.deductQty||0,m.usedForms||'',m.remaining||0,m.alert||''])
+    ]},
+    {name:'الاستمارات', aoa:[
+      ['الرقم','التاريخ','المعمل','الصنف','الكمية','المستقطع','الباقي','السعر','قيمة الاستقطاع','حالة التحويل','الحالة','تنبيه'],
+      ...DB.forms.map(f => [f.number,f.date,f.plant,f.item,f.qty,f.deducted,f.remainder,f.price,f.deductValue,f.transferState,f.status,f.alert])
+    ]},
+    {name:'الحصص', aoa:[
+      ['المعمل','الصنف','الوحدة','اليومي','الشهري','النوع','البدء','الانتهاء','ملاحظات'],
+      ...DB.quotas.map(q => [q.plant,q.item,q.unit,q.daily,q.monthly,q.type,q.startDate,q.endDate,q.notes])
+    ]}
+  ];
+  exportExcel(sheets, 'تقرير_كامل_' + today());
+}
+
+/* ============================================================
+   لوحة التحكم
+   ============================================================ */
+function renderDashboard(){
+  const ym = DB.monitorMonth;
+  const monthMovs = DB.movements.filter(m => monthOf(m.date) === ym);
+  const totalNatural = monthMovs.reduce((s,m)=>s+(Number(m.naturalQty)||0),0);
+  const totalStandard = monthMovs.reduce((s,m)=>s+(Number(m.standardQty)||0),0);
+  const totalWeight = monthMovs.reduce((s,m)=>s+(Number(m.weight)||0),0);
+  const totalDiff = totalNatural - totalStandard;
+  const totalFormsQty = DB.forms.reduce((s,f)=>s+(Number(f.qty)||0),0);
+  const totalDeducted = DB.forms.reduce((s,f)=>s+(Number(f.deducted)||0),0);
+  const cutRatio = totalFormsQty ? totalDeducted/totalFormsQty : 0;
+  const days = daysInMonth(ym);
+  const avgDaily = totalNatural / days;
+  const pendingForms = DB.forms.filter(f=>f.transferState==='قيد الانتظار').length;
+  const trialQuotas = DB.quotas.filter(q=>q.type==='تجريبية (3 أشهر)').length;
+  const financialRemainder = DB.forms.reduce((s,f)=>s+f.remainder*(Number(f.price)||0),0);
+  const totalDeductValue = DB.forms.reduce((s,f)=>s+(Number(f.deductValue)||0),0);
+  const depletedForms = DB.forms.filter(f=>f.status==='منتهية').length;
+  const alertMovs = DB.movements.filter(m=>m.alert).length;
+  const tripsCount = monthMovs.length;
+
+  document.getElementById('page-dashboard').innerHTML =
+    '<div class="page-head"><div><h2>لوحة التحكم</h2><div class="sub">نظرة عامة</div></div>' +
+    '<div class="toolbar" style="margin:0"><input type="month" id="dash-month" value="' + ym + '">' +
+    '<button class="btn btn-secondary" onclick="exportFullDB()">📊 Excel</button>' +
+    '<button class="btn btn-secondary" onclick="printPage()">🖨️ طباعة</button></div></div>' +
+    (depletedForms>0?'<div class="alert-banner alert-warning">⚠️ ' + depletedForms + ' استمارة منتهية</div>':'') +
+    (alertMovs>0?'<div class="alert-banner alert-danger">🚨 ' + alertMovs + ' حركة بدون رصيد كافٍ</div>':'') +
+    '<div class="kpi-grid">' +
+      '<div class="kpi"><div class="label">إجمالي الكمية الطبيعية</div><div class="value">' + fmt(totalNatural) + '</div><div class="hint">' + tripsCount + ' رحلة</div></div>' +
+      '<div class="kpi success"><div class="label">نسبة القطع</div><div class="value">' + (cutRatio*100).toFixed(2) + '%</div><div class="hint">' + fmt(totalDeducted) + '/' + fmt(totalFormsQty) + '</div></div>' +
+      '<div class="kpi"><div class="label">متوسط الاستهلاك اليومي</div><div class="value">' + fmt(avgDaily) + '</div><div class="hint">' + days + ' يوم</div></div>' +
+      '<div class="kpi ' + (pendingForms>0?'warning':'') + '"><div class="label">استمارات معلقة</div><div class="value">' + pendingForms + '</div></div>' +
+      '<div class="kpi"><div class="label">حصص تجريبية</div><div class="value">' + trialQuotas + '</div></div>' +
+      '<div class="kpi"><div class="label">الباقي المالي</div><div class="value">' + fmt(financialRemainder) + '</div></div>' +
+      '<div class="kpi success"><div class="label">قيمة الاستقطاع</div><div class="value">' + fmt(totalDeductValue) + '</div></div>' +
+    '</div>' +
+    '<h3 style="margin:20px 0 12px;font-size:1.1rem">📐 ملخص القياسات</h3>' +
+    '<div class="kpi-grid">' +
+      '<div class="kpi"><div class="label">الكمية القياسية</div><div class="value">' + fmt(totalStandard) + '</div></div>' +
+      '<div class="kpi"><div class="label">الوزن</div><div class="value">' + fmt(totalWeight) + '</div></div>' +
+      '<div class="kpi ' + (totalDiff<0?'danger':'success') + '"><div class="label">الفرق</div><div class="value">' + fmt(totalDiff) + '</div></div>' +
+      '<div class="kpi"><div class="label">متوسط نسبة الفرق</div><div class="value">' + (totalNatural?((totalDiff/totalNatural)*100).toFixed(2):0) + '%</div></div>' +
+      '<div class="kpi"><div class="label">عدد الرحلات</div><div class="value">' + tripsCount + '</div></div>' +
+    '</div>';
+
+  const mSel = document.getElementById('dash-month');
+  if(mSel) mSel.onchange = e => { DB.monitorMonth = e.target.value; saveDB(); renderDashboard(); };
+}
+
+/* ============================================================
+   الحصص
+   ============================================================ */
+function renderQuotas(){
+  const rows = DB.quotas.map((q,i) =>
+    '<tr><td>' + q.plant + '</td><td>' + q.item + '</td><td>' + q.unit + '</td>' +
+    '<td class="cell-num">' + fmt(q.daily,0) + '</td><td class="cell-num">' + fmt(q.monthly,0) + '</td>' +
+    '<td>' + badge(q.type) + '</td><td>' + (q.startDate||'-') + '</td><td>' + (q.endDate||'-') + '</td>' +
+    '<td>' + (q.notes||'-') + '</td>' +
+    '<td><button class="btn btn-secondary btn-sm" onclick="openQuotaModal(' + i + ')">✏️</button> ' +
+    '<button class="btn btn-danger btn-sm" onclick="deleteQuota(' + i + ')">🗑️</button></td></tr>'
+  ).join('');
+
+  document.getElementById('page-quotas').innerHTML =
+    '<div class="page-head"><div><h2>المعامل والحصص</h2></div>' +
+    '<div class="toolbar" style="margin:0">' +
+    '<button class="btn btn-secondary" onclick="exportQuotasExcel()">📊 Excel</button>' +
+    '<button class="btn btn-secondary" onclick="printPage()">🖨️ طباعة</button>' +
+    '<button class="btn" onclick="openQuotaModal(-1)">➕ إضافة</button></div></div>' +
+    '<div class="table-wrap"><table><thead><tr><th>المعمل</th><th>الصنف</th><th>الوحدة</th><th>اليومي</th><th>الشهري</th><th>النوع</th><th>البدء</th><th>الانتهاء</th><th>ملاحظات</th><th>إجراءات</th></tr></thead>' +
+    '<tbody>' + (rows || '<tr><td colspan="10" class="empty">لا توجد حصص</td></tr>') + '</tbody></table></div>';
+}
+
+function exportQuotasExcel(){
+  const aoa = [['المعمل','الصنف','الوحدة','اليومي','الشهري','النوع','البدء','الانتهاء','ملاحظات']];
+  DB.quotas.forEach(q => aoa.push([q.plant,q.item,q.unit,q.daily,q.monthly,q.type,q.startDate,q.endDate,q.notes]));
+  exportExcel([{name:'الحصص', aoa}], 'الحصص_' + today());
+}
+
+function openQuotaModal(index){
+  const isEdit = index >= 0;
+  const q = isEdit ? DB.quotas[index] : {plant:'', item:'', unit:'طن', daily:0, monthly:0, type:'ثابتة', startDate:'', endDate:'', notes:''};
+  openModal(isEdit?'تعديل':'إضافة', '<div class="form-grid">' +
+    '<div class="form-field"><label>المعمل</label><select id="q-plant">' + optHTML(DB.settings.plants, q.plant) + '</select></div>' +
+    '<div class="form-field"><label>الصنف</label><select id="q-item">' + optHTML(DB.settings.items, q.item) + '</select></div>' +
+    '<div class="form-field"><label>الوحدة</label><select id="q-unit">' + optHTML(DB.settings.units, q.unit) + '</select></div>' +
+    '<div class="form-field"><label>النوع</label><select id="q-type">' + optHTML(DB.settings.quotaTypes, q.type) + '</select></div>' +
+    '<div class="form-field"><label>اليومي</label><input type="number" step="any" id="q-daily" value="' + q.daily + '"></div>' +
+    '<div class="form-field"><label>الشهري</label><input type="number" step="any" id="q-monthly" value="' + q.monthly + '"></div>' +
+    '<div class="form-field"><label>البدء</label><input type="date" id="q-start" value="' + (q.startDate||'') + '"></div>' +
+    '<div class="form-field"><label>الانتهاء</label><input type="date" id="q-end" value="' + (q.endDate||'') + '"></div>' +
+    '<div class="form-field full"><label>ملاحظات</label><input id="q-notes" value="' + (q.notes||'') + '"></div>' +
+    '</div>', function(){
+      const data = {plant:document.getElementById('q-plant').value, item:document.getElementById('q-item').value, unit:document.getElementById('q-unit').value, type:document.getElementById('q-type').value, daily:Number(document.getElementById('q-daily').value)||0, monthly:Number(document.getElementById('q-monthly').value)||0, startDate:document.getElementById('q-start').value, endDate:document.getElementById('q-end').value, notes:document.getElementById('q-notes').value};
+      if(isEdit) DB.quotas[index] = data; else DB.quotas.push(data);
+      saveDB(); closeModal(); renderAll();
+      toast('تم الحفظ', 'success');
+    });
+}
+function deleteQuota(i){ if(!confirm('حذف؟')) return; DB.quotas.splice(i,1); saveDB(); renderAll(); toast('تم الحذف', 'warning'); }
+
+/* ============================================================
+   الاستمارات
+   ============================================================ */
+function renderForms(){
+  const f = formsFilter;
+  const list = DB.forms.map((x,i) => Object.assign({}, x, {_i:i}))
+    .filter(x => (!f.plant || x.plant === f.plant) &&
+      (!f.search || String(x.number||'').indexOf(f.search) !== -1 || String(x.plant||'').indexOf(f.search) !== -1 || String(x.item||'').indexOf(f.search) !== -1));
+
+  const rows = list.map(x =>
+    '<tr><td>' + (x.number||'-') + '</td><td>' + (x.date||'-') + '</td><td>' + (x.plant||'-') + '</td>' +
+    '<td>' + (x.item||'-') + '</td><td class="cell-num">' + fmt(x.qty) + '</td><td class="cell-num">' + fmt(x.deducted) + '</td>' +
+    '<td class="cell-num">' + fmt(x.remainder) + '</td><td class="cell-num">' + fmt(x.price) + '</td>' +
+    '<td class="cell-num">' + fmt(x.deductValue) + '</td><td>' + badge(x.transferState) + '</td>' +
+    '<td>' + badge(x.status) + '</td>' +
+    '<td style="color:var(--warning);font-size:.75rem;max-width:220px;white-space:normal">' + (x.alert||'') + '</td>' +
+    '<td><button class="btn btn-secondary btn-sm" onclick="openFormModal(' + x._i + ')">✏️</button> ' +
+    '<button class="btn btn-danger btn-sm" onclick="deleteForm(' + x._i + ')">🗑️</button></td></tr>'
+  ).join('');
+
+  document.getElementById('page-forms').innerHTML =
+    '<div class="page-head"><div><h2>سجل الاستمارات</h2><div class="sub">' + DB.forms.length + ' استمارة</div></div>' +
+    '<div class="toolbar" style="margin:0">' +
+    '<button class="btn btn-secondary" onclick="exportFormsExcel()">📊 Excel</button>' +
+    '<button class="btn btn-secondary" onclick="printPage()">🖨️ طباعة</button>' +
+    '<button class="btn" onclick="openFormModal(-1)">➕ إضافة</button></div></div>' +
+    '<div class="toolbar"><input type="text" id="frm-search" placeholder="بحث" value="' + f.search + '">' +
+    '<select id="frm-plant"><option value="">كل المعامل</option>' +
+    DB.settings.plants.map(p => '<option ' + (p===f.plant?'selected':'') + '>' + p + '</option>').join('') + '</select>' +
+    '<div class="spacer"></div><button class="btn btn-secondary" onclick="recalcAndRender()">🔄 إعادة احتساب</button></div>' +
+    '<div class="table-wrap"><table><thead><tr>' +
+    '<th>الرقم</th><th>التاريخ</th><th>المعمل</th><th>الصنف</th><th>الكمية</th><th>المستقطع</th><th>الباقي</th>' +
+    '<th>السعر</th><th>القيمة</th><th>حالة التحويل</th><th>الحالة</th><th>تنبيه</th><th>إجراءات</th></tr></thead>' +
+    '<tbody>' + (rows || '<tr><td colspan="13" class="empty">لا توجد استمارات</td></tr>') + '</tbody></table></div>';
+
+  const s = document.getElementById('frm-search'); if(s) s.oninput = e => { formsFilter.search = e.target.value; renderForms(); };
+  const p = document.getElementById('frm-plant'); if(p) p.onchange = e => { formsFilter.plant = e.target.value; renderForms(); };
+}
+
+function exportFormsExcel(){
+  const aoa = [['الرقم','التاريخ','المعمل','الصنف','الكمية','المستقطع','الباقي','السعر','القيمة','التحويل','الحالة','تنبيه']];
+  DB.forms.forEach(f => aoa.push([f.number,f.date,f.plant,f.item,f.qty,f.deducted,f.remainder,f.price,f.deductValue,f.transferState,f.status,f.alert]));
+  exportExcel([{name:'الاستمارات', aoa}], 'الاستمارات_' + today());
+}
+
+function openFormModal(index){
+  const isEdit = index >= 0;
+  const f = isEdit ? DB.forms[index] : {number:'', date:today(), orderNumber:'', orderDate:'', price:0, transferState:'تم التحويل', branch:'', transporter:'', site:'', item:DB.settings.items[0], purpose:'', qty:0, remainderAction:'استرجاع', notes:'', plant:DB.settings.plants[0]};
+  openModal(isEdit?'تعديل استمارة':'إضافة استمارة', '<div class="form-grid">' +
+    '<div class="form-field"><label>الرقم *</label><input id="f-number" value="' + (f.number||'') + '"></div>' +
+    '<div class="form-field"><label>التاريخ *</label><input type="date" id="f-date" value="' + (f.date||'') + '"></div>' +
+    '<div class="form-field"><label>المعمل *</label><select id="f-plant">' + optHTML(DB.settings.plants, f.plant) + '</select></div>' +
+    '<div class="form-field"><label>الصنف *</label><select id="f-item">' + optHTML(DB.settings.items, f.item) + '</select></div>' +
+    '<div class="form-field"><label>الكمية *</label><input type="number" step="any" id="f-qty" value="' + (f.qty||0) + '"></div>' +
+    '<div class="form-field"><label>السعر</label><input type="number" step="any" id="f-price" value="' + (f.price||0) + '"></div>' +
+    '<div class="form-field"><label>أمر التجهيز</label><input id="f-orderNumber" value="' + (f.orderNumber||'') + '"></div>' +
+    '<div class="form-field"><label>تاريخ الأمر</label><input type="date" id="f-orderDate" value="' + (f.orderDate||'') + '"></div>' +
+    '<div class="form-field"><label>التحويل</label><select id="f-transferState">' + optHTML(DB.settings.transferStates, f.transferState) + '</select></div>' +
+    '<div class="form-field"><label>الفرع</label><input id="f-branch" value="' + (f.branch||'') + '"></div>' +
+    '<div class="form-field"><label>الناقل</label><input id="f-transporter" value="' + (f.transporter||'') + '"></div>' +
+    '<div class="form-field"><label>الموقع</label><input id="f-site" value="' + (f.site||'') + '"></div>' +
+    '<div class="form-field"><label>الغرض</label><input id="f-purpose" value="' + (f.purpose||'') + '"></div>' +
+    '<div class="form-field"><label>إجراء الباقي</label><select id="f-remainderAction">' + optHTML(DB.settings.remainderActions, f.remainderAction) + '</select></div>' +
+    '<div class="form-field full"><label>ملاحظات</label><input id="f-notes" value="' + (f.notes||'') + '"></div>' +
+    '</div>', function(){
+      const data = {number:document.getElementById('f-number').value.trim(), date:document.getElementById('f-date').value, plant:document.getElementById('f-plant').value, item:document.getElementById('f-item').value, qty:Number(document.getElementById('f-qty').value)||0, price:Number(document.getElementById('f-price').value)||0, orderNumber:document.getElementById('f-orderNumber').value, orderDate:document.getElementById('f-orderDate').value, transferState:document.getElementById('f-transferState').value, branch:document.getElementById('f-branch').value, transporter:document.getElementById('f-transporter').value, site:document.getElementById('f-site').value, purpose:document.getElementById('f-purpose').value, remainderAction:document.getElementById('f-remainderAction').value, notes:document.getElementById('f-notes').value};
+      if(!data.number || !data.plant || !data.item || data.qty <= 0){ toast('يرجى ملء الحقول الإلزامية', 'danger'); return; }
+      if(isEdit) DB.forms[index] = Object.assign({}, DB.forms[index], data); else DB.forms.push(data);
+      recalcDeductions(); saveDB(); closeModal(); renderAll();
+      toast('تم الحفظ', 'success');
+    });
+}
+function deleteForm(i){ if(!confirm('حذف؟')) return; DB.forms.splice(i,1); recalcDeductions(); saveDB(); renderAll(); toast('تم الحذف', 'warning'); }
+function recalcAndRender(){ recalcDeductions(); saveDB(); renderAll(); toast('تم إعادة الاحتساب', 'info'); }
+
+/* ============================================================
+   الحركة اليومية + زر الاستيراد
+   ============================================================ */
+function renderMovements(){
+  const f = movFilter;
+  const list = DB.movements.map((x,i) => Object.assign({}, x, {_i:i}))
+    .filter(x => (!f.plant || x.plant === f.plant) &&
+      (!f.search || String(x.car||'').indexOf(f.search) !== -1 || String(x.plant||'').indexOf(f.search) !== -1 || String(x.driver||'').indexOf(f.search) !== -1));
+
+  const rows = list.map(x => {
+    const isW = DB.settings.weightItems.indexOf(x.item) !== -1;
+    const diff = (Number(x.naturalQty)||0) - (Number(x.standardQty)||0);
+    return '<tr><td>' + (x.date||'-') + '</td><td>' + (x.plant||'-') + '</td><td>' + (x.item||'-') + '</td>' +
+      '<td>' + (x.car||'-') + '</td>' +
+      '<td class="cell-num">' + fmt(x.naturalQty) + '</td><td class="cell-num">' + fmt(x.standardQty) + '</td>' +
+      '<td class="cell-num">' + fmt(x.weight) + '</td>' +
+      '<td class="cell-num" style="color:' + (diff<0?'var(--danger)':'inherit') + '">' + fmt(diff) + '</td>' +
+      '<td>' + (x.driver||'-') + '</td><td>' + (x.docNumber||'-') + '</td>' +
+      '<td>' + (x.province||'-') + '</td><td>' + (x.beneficiary||'-') + '</td>' +
+      '<td class="cell-num">' + (isW?'<span class="badge badge-info">وزن</span>':'<span class="badge badge-muted">طبيعية</span>') + ' ' + fmt(x.deductQty) + '</td>' +
+      '<td style="font-size:.72rem">' + (x.usedForms||'-') + '</td>' +
+      '<td class="cell-num" style="color:' + ((x.remaining||0)>0?'var(--danger)':'inherit') + '">' + fmt(x.remaining) + '</td>' +
+      '<td style="color:var(--warning);font-size:.72rem;max-width:180px;white-space:normal">' + (x.alert||'') + '</td>' +
+      '<td><button class="btn btn-secondary btn-sm" onclick="openMovementModal(' + x._i + ')">✏️</button> ' +
+      '<button class="btn btn-danger btn-sm" onclick="deleteMovement(' + x._i + ')">🗑️</button></td></tr>';
+  }).join('');
+
+  const alerts = DB.movements.filter(m => m.alert).length;
+
+  document.getElementById('page-movements').innerHTML =
+    '<div class="page-head"><div><h2>الحركة اليومية</h2><div class="sub">' + DB.movements.length + ' حركة</div></div>' +
+    '<div class="toolbar" style="margin:0">' +
+    '<button class="btn btn-success" onclick="openImportModal()">📥 استيراد Excel</button>' +
+    '<button class="btn btn-secondary" onclick="exportMovementsExcel()">📊 Excel</button>' +
+    '<button class="btn btn-secondary" onclick="printPage()">🖨️ طباعة</button>' +
+    '<button class="btn" onclick="openMovementModal(-1)">➕ إضافة</button></div></div>' +
+    (alerts>0?'<div class="alert-banner alert-danger">🚨 ' + alerts + ' حركة بدون رصيد كافٍ</div>':'') +
+    '<div class="toolbar"><input type="text" id="mov-search" placeholder="بحث" value="' + f.search + '">' +
+    '<select id="mov-plant"><option value="">كل المعامل</option>' +
+    DB.settings.plants.map(p => '<option ' + (p===f.plant?'selected':'') + '>' + p + '</option>').join('') + '</select></div>' +
+    '<div class="table-wrap"><table><thead><tr>' +
+    '<th>التاريخ</th><th>المعمل</th><th>الصنف</th><th>السيارة</th><th>طبيعية</th><th>قياسية</th><th>الوزن</th><th>الفرق</th>' +
+    '<th>السائق</th><th>المستند</th><th>المحافظة</th><th>الجهة</th><th>الاستقطاع</th><th>الاستمارة</th><th>متبقي</th><th>تنبيه</th><th>إجراءات</th></tr></thead>' +
+    '<tbody>' + (rows || '<tr><td colspan="17" class="empty">لا توجد حركات</td></tr>') + '</tbody></table></div>';
+
+  const s = document.getElementById('mov-search'); if(s) s.oninput = e => { movFilter.search = e.target.value; renderMovements(); };
+  const p = document.getElementById('mov-plant'); if(p) p.onchange = e => { movFilter.plant = e.target.value; renderMovements(); };
+}
+
+function exportMovementsExcel(){
+  const aoa = [['التاريخ','المعمل','الصنف','السيارة','طبيعية','قياسية','الوزن','الفرق','السائق','المستند','المحافظة','الجهة','الاستقطاع','الاستمارات','متبقي','تنبيه']];
+  DB.movements.forEach(m => aoa.push([m.date,m.plant,m.item,m.car,m.naturalQty,m.standardQty,m.weight,(Number(m.naturalQty)||0)-(Number(m.standardQty)||0),m.driver,m.docNumber,m.province,m.beneficiary,m.deductQty||0,m.usedForms||'',m.remaining||0,m.alert||'']));
+  exportExcel([{name:'الحركة اليومية', aoa}], 'الحركة_' + today());
+}
+
+function openMovementModal(index){
+  const isEdit = index >= 0;
+  const m = isEdit ? DB.movements[index] : {date:today(), plant:DB.settings.plants[0], item:DB.settings.items[0], basin:'', car:'', naturalQty:0, standardQty:0, weight:0, driver:'', docNumber:'', loadDate:today(), province:'', beneficiary:'', notes:''};
+  openModal(isEdit?'تعديل حركة':'إضافة حركة', '<div class="form-grid">' +
+    '<div class="form-field"><label>التاريخ *</label><input type="date" id="m-date" value="' + (m.date||'') + '"></div>' +
+    '<div class="form-field"><label>المعمل *</label><select id="m-plant">' + optHTML(DB.settings.plants, m.plant) + '</select></div>' +
+    '<div class="form-field"><label>الصنف *</label><select id="m-item">' + optHTML(DB.settings.items, m.item) + '</select></div>' +
+    '<div class="form-field"><label>السيارة</label><input id="m-car" value="' + (m.car||'') + '"></div>' +
+    '<div class="form-field"><label>طبيعية *</label><input type="number" step="any" id="m-naturalQty" value="' + (m.naturalQty||0) + '"></div>' +
+    '<div class="form-field"><label>قياسية</label><input type="number" step="any" id="m-standardQty" value="' + (m.standardQty||0) + '"></div>' +
+    '<div class="form-field"><label>الوزن</label><input type="number" step="any" id="m-weight" value="' + (m.weight||0) + '"></div>' +
+    '<div class="form-field"><label>السائق</label><input id="m-driver" value="' + (m.driver||'') + '"></div>' +
+    '<div class="form-field"><label>المستند</label><input id="m-docNumber" value="' + (m.docNumber||'') + '"></div>' +
+    '<div class="form-field"><label>المحافظة</label><select id="m-province">' + optHTML([''].concat(DB.settings.provinces), m.province) + '</select></div>' +
+    '<div class="form-field full"><label>الجهة المستفيدة</label><input id="m-beneficiary" value="' + (m.beneficiary||'') + '"></div>' +
+    '</div>', function(){
+      const data = {date:document.getElementById('m-date').value, plant:document.getElementById('m-plant').value, item:document.getElementById('m-item').value, car:document.getElementById('m-car').value, naturalQty:Number(document.getElementById('m-naturalQty').value)||0, standardQty:Number(document.getElementById('m-standardQty').value)||0, weight:Number(document.getElementById('m-weight').value)||0, driver:document.getElementById('m-driver').value, docNumber:document.getElementById('m-docNumber').value, province:document.getElementById('m-province').value, beneficiary:document.getElementById('m-beneficiary').value, loadDate:data_date()};
+      function data_date(){ return document.getElementById('m-date').value || today(); }
+      if(!data.date || !data.plant || !data.item){ toast('يرجى ملء الحقول الإلزامية', 'danger'); return; }
+      if(isEdit) DB.movements[index] = Object.assign({}, DB.movements[index], data); else DB.movements.push(data);
+      recalcDeductions(); saveDB(); closeModal(); renderAll();
+      toast('تم الحفظ', 'success');
+    });
+}
+function deleteMovement(i){ if(!confirm('حذف؟')) return; DB.movements.splice(i,1); recalcDeductions(); saveDB(); renderAll(); toast('تم الحذف', 'warning'); }
+
+/* ============================================================
+   استيراد Excel
+   ============================================================ */
+function openImportModal(){
+  if(typeof XLSX === 'undefined'){
+    toast('مكتبة Excel غير محملة — يرجى الاتصال بالإنترنت مرة واحدة لتفعيلها', 'danger');
+    return;
+  }
+  const body =
+    '<div class="upload-zone" id="upload-zone" onclick="document.getElementById(\'import-file\').click()">' +
+      '<div class="icon">📤</div>' +
+      '<h4>اختر ملف Excel</h4>' +
+      '<p>يدعم صيغة تقرير اللجنة (RLAPdtls) أو أي ملف بعناوين واضحة</p>' +
+      '<input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none">' +
+    '</div>' +
+    '<div id="import-body"></div>';
+
+  document.getElementById('modal-root').innerHTML =
+    '<div class="modal-overlay" onclick="if(event.target===this)closeModal()">' +
+      '<div class="modal" style="max-width:1100px">' +
+        '<div class="modal-head"><h3>📥 استيراد حركات من Excel</h3><button class="modal-close" onclick="closeModal()">×</button></div>' +
+        '<div class="modal-body" id="import-content">' + body + '</div>' +
+        '<div class="modal-foot">' +
+          '<button class="btn btn-secondary" onclick="closeModal()">إلغاء</button>' +
+          '<button class="btn btn-success" id="import-confirm" style="display:none" onclick="confirmImport()">✅ استيراد</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.getElementById('import-file').onchange = async function(e){
+    const file = e.target.files[0];
+    if(!file) return;
+    try {
+      toast('جاري قراءة الملف...', 'info');
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:'array', cellDates:true});
+      // find sheet
+      let sheetName = wb.SheetNames.find(n => /RLAP|حركة|يومي|report/i.test(n)) || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const aoa = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:false, dateNF:'yyyy-mm-dd'});
+      const parsed = parseImportAOA(aoa);
+      if(!parsed.rows.length){
+        toast('لم يتم العثور على صفوف بيانات', 'warning');
+        return;
+      }
+      renderImportPreview(parsed, file.name);
+    } catch(err){
+      console.error(err);
+      toast('فشل قراءة الملف: ' + err.message, 'danger');
+    }
+  };
+}
+
+function parseImportAOA(aoa){
+  // 1) Find header row
+  let headerIdx = -1, headerMap = {};
+  for(let i = 0; i < Math.min(aoa.length, 40); i++){
+    const rowText = aoa[i].map(c => String(c||'')).join(' ');
+    if(/اسم\s*السائق|الكمية\s*الطبيعية|driver/i.test(rowText)){
+      headerIdx = i;
+      aoa[i].forEach((cell, ci) => {
+        const h = String(cell||'').trim();
+        if(/اسم\s*السائق|driver/i.test(h)) headerMap.driver = ci;
+        else if(/رقم\s*السيارة|السيارة|car/i.test(h)) headerMap.car = ci;
+        else if(/الجهة\s*المستفيدة|beneficiary/i.test(h)) headerMap.beneficiary = ci;
+        else if(/^الوزن$|weight/i.test(h)) headerMap.weight = ci;
+        else if(/الكمية\s*القياسية|standard/i.test(h)) headerMap.standardQty = ci;
+        else if(/الكمية\s*الطبيعية|natural/i.test(h)) headerMap.naturalQty = ci;
+        else if(/رقم\s*المستند|document/i.test(h)) headerMap.docNumber = ci;
+        else if(/^ت$|^#$|serial|no/i.test(h)) headerMap.serial = ci;
+        else if(/التاريخ|date/i.test(h)) headerMap.date = ci;
+        else if(/المعمل|plant/i.test(h)) headerMap.plant = ci;
+        else if(/الصنف|item|المنتوج|المنتج/i.test(h)) headerMap.item = ci;
+        else if(/المحافظة|province/i.test(h)) headerMap.province = ci;
+      });
+      break;
+    }
+  }
+
+  // 2) Fallback for RLAPdtls structure
+  if(headerIdx < 0){
+    // look for specific labels
+    for(let i = 0; i < Math.min(aoa.length, 40); i++){
+      const rowText = aoa[i].map(c => String(c||'')).join(' ');
+      if(/تفاصيل\s*السيارات/.test(rowText)){ headerIdx = i + 2; break; }
+    }
+    if(headerIdx < 0) headerIdx = 10;
+    headerMap = {driver:5, car:10, beneficiary:14, weight:16, standardQty:19, naturalQty:20, docNumber:22, serial:23};
+  }
+
+  // 3) Extract header info (date, plant, item)
+  let dateStr = '', detectedPlant = '', detectedItem = '';
+  const dateRe = /^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/;
+  for(let i = 0; i < headerIdx; i++){
+    const row = aoa[i] || [];
+    row.forEach(cell => {
+      if(!cell) return;
+      if(cell instanceof Date){
+        if(!dateStr) dateStr = cell.toISOString().slice(0,10);
+      } else {
+        const s = String(cell).trim();
+        const dm = s.match(dateRe);
+        if(dm && !dateStr) dateStr = dm[1] + '-' + String(dm[2]).padStart(2,'0') + '-' + String(dm[3]).padStart(2,'0');
+        if(/مصفى|فرع|معمل/.test(s) && s.length < 40 && !detectedPlant && !/تفاصيل|لجنة/.test(s)){
+          detectedPlant = s;
+        }
+      }
+    });
+    const rowText = row.map(c => String(c||'')).join(' ');
+    if(/نوع\s*المنتوج|نوع\s*المنتج/.test(rowText)){
+      // product name is usually the cell just before the label
+      for(let ci = row.length-1; ci >= 0; ci--){
+        if(/نوع\s*المنتوج/.test(String(row[ci]))){
+          for(let k = ci-1; k >= 0; k--){
+            const v = String(row[k]||'').trim();
+            if(v && /[ا-ي]/.test(v) && !/نوع/.test(v)){ detectedItem = v; break; }
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  // 4) Extract rows
+  const rows = [];
+  for(let i = headerIdx + 1; i < aoa.length; i++){
+    const row = aoa[i] || [];
+    if(!row.length) continue;
+    const driver = headerMap.driver !== undefined ? String(row[headerMap.driver]||'').trim() : '';
+    const natural = headerMap.naturalQty !== undefined ? Number(String(row[headerMap.naturalQty]||'').replace(/,/g,'')) : 0;
+    const doc = headerMap.docNumber !== undefined ? String(row[headerMap.docNumber]||'').trim() : '';
+    // skip empty or totals rows
+    if(!driver && !natural && !doc) continue;
+    if(!natural && !doc) continue;
+    if(/الإجمالي|المجموع|total/i.test(driver)) continue;
+    const r = {
+      serial: headerMap.serial !== undefined ? row[headerMap.serial] : '',
+      driver: driver,
+      car: headerMap.car !== undefined ? String(row[headerMap.car]||'').trim() : '',
+      beneficiary: headerMap.beneficiary !== undefined ? String(row[headerMap.beneficiary]||'').trim() : '',
+      weight: headerMap.weight !== undefined ? Number(String(row[headerMap.weight]||'').replace(/,/g,'')) || 0 : 0,
+      standardQty: headerMap.standardQty !== undefined ? Number(String(row[headerMap.standardQty]||'').replace(/,/g,'')) || 0 : 0,
+      naturalQty: natural,
+      docNumber: doc,
+      date: headerMap.date !== undefined ? String(row[headerMap.date]||'').trim() : '',
+      plant: headerMap.plant !== undefined ? String(row[headerMap.plant]||'').trim() : '',
+      item: headerMap.item !== undefined ? String(row[headerMap.item]||'').trim() : '',
+      province: headerMap.province !== undefined ? String(row[headerMap.province]||'').trim() : '',
+      selected: true
+    };
+    rows.push(r);
+  }
+
+  return {headerIdx, headerMap, dateStr, detectedPlant, detectedItem, rows};
+}
+
+function renderImportPreview(parsed, filename){
+  importState = {parsed: parsed, filename: filename, plant: null, item: null, date: null, province: null};
+
+  // Guess plant/item/date from detection or defaults
+  let defaultPlant = DB.settings.plants.find(p => parsed.detectedPlant && parsed.detectedPlant.indexOf(p) !== -1) || '';
+  if(!defaultPlant && parsed.detectedPlant && /كربلاء/.test(parsed.detectedPlant)){
+    defaultPlant = DB.settings.plants.find(p => /ج/.test(p)) || DB.settings.plants[0];
+  }
+  if(!defaultPlant) defaultPlant = DB.settings.plants[0];
+
+  let defaultItem = DB.settings.items.find(i => parsed.detectedItem && parsed.detectedItem.indexOf(i) !== -1) || '';
+  if(!defaultItem && parsed.detectedItem){
+    // try to match partial
+    for(const it of DB.settings.items){ if(parsed.detectedItem.indexOf(it) !== -1 || it.indexOf(parsed.detectedItem) !== -1){ defaultItem = it; break; } }
+  }
+  if(!defaultItem && parsed.detectedItem){
+    // add new item
+    defaultItem = parsed.detectedItem;
+    if(DB.settings.items.indexOf(defaultItem) === -1) DB.settings.items.push(defaultItem);
+  }
+  if(!defaultItem) defaultItem = DB.settings.items[0];
+
+  let defaultDate = parsed.dateStr || today();
+
+  const plantOpts = DB.settings.plants.map(p => '<option value="' + p + '"' + (p===defaultPlant?' selected':'') + '>' + p + '</option>').join('');
+  const itemOpts = DB.settings.items.map(p => '<option value="' + p + '"' + (p===defaultItem?' selected':'') + '>' + p + '</option>').join('');
+  const provOpts = ['<option value="">-- بلا --</option>'].concat(DB.settings.provinces.map(p => '<option value="' + p + '">' + p + '</option>')).join('');
+
+  // Build preview rows
+  const previewRows = parsed.rows.map((r, idx) =>
+    '<tr>' +
+      '<td><input type="checkbox" class="chk" data-idx="' + idx + '" ' + (r.selected?'checked':'') + ' onchange="toggleImportRow(' + idx + ',this.checked)"></td>' +
+      '<td>' + (r.serial||'') + '</td>' +
+      '<td>' + (r.driver||'') + '</td>' +
+      '<td>' + (r.car||'') + '</td>' +
+      '<td>' + (r.beneficiary||'') + '</td>' +
+      '<td class="cell-num">' + fmt(r.naturalQty) + '</td>' +
+      '<td class="cell-num">' + fmt(r.standardQty) + '</td>' +
+      '<td class="cell-num">' + fmt(r.weight) + '</td>' +
+      '<td>' + (r.docNumber||'') + '</td>' +
+    '</tr>'
+  ).join('');
+
+  const totalNatural = parsed.rows.reduce((s,r) => s + (r.naturalQty||0), 0);
+  const totalWeight = parsed.rows.reduce((s,r) => s + (r.weight||0), 0);
+
+  const body =
+    '<div class="alert-banner alert-info">📄 تم اكتشاف <b>' + parsed.rows.length + '</b> صف في الملف <b>' + filename + '</b>. ' +
+    'يُرجى مراجعة الإعدادات أدناه قبل الاستيراد.</div>' +
+
+    '<div class="form-grid" style="margin-bottom:14px">' +
+      '<div class="form-field"><label>المعمل (لكل الحركات)</label><select id="imp-plant">' + plantOpts + '</select></div>' +
+      '<div class="form-field"><label>الصنف</label><select id="imp-item">' + itemOpts + '</select></div>' +
+      '<div class="form-field"><label>تاريخ الحركة</label><input type="date" id="imp-date" value="' + defaultDate + '"></div>' +
+      '<div class="form-field"><label>المحافظة</label><select id="imp-province">' + provOpts + '</select></div>' +
+    '</div>' +
+
+    (parsed.detectedPlant || parsed.detectedItem ? '<div class="alert-banner alert-warning" style="font-size:.8rem">🔍 اكتُشف من الملف: ' +
+      (parsed.detectedPlant ? 'المعمل="' + parsed.detectedPlant + '" ' : '') +
+      (parsed.detectedItem ? 'الصنف="' + parsed.detectedItem + '"' : '') +
+      ' — يمكنك تعديلهما أعلاه.</div>' : '') +
+
+    '<div class="import-summary">' +
+      '<span>عدد الصفوف المختارة: <b id="imp-sel-count">' + parsed.rows.length + '</b></span>' +
+      '<span>إجمالي الكمية الطبيعية: <b>' + fmt(totalNatural) + '</b></span>' +
+      '<span>إجمالي الوزن: <b>' + fmt(totalWeight) + '</b></span>' +
+      '<span>الصنف: <b>' + (DB.settings.weightItems.indexOf(defaultItem) !== -1 ? 'يُخصم من الوزن' : 'يُخصم من الكمية الطبيعية') + '</b></span>' +
+    '</div>' +
+
+    '<div class="import-preview"><table>' +
+      '<thead><tr><th></th><th>ت</th><th>السائق</th><th>السيارة</th><th>الجهة</th><th>طبيعية</th><th>قياسية</th><th>الوزن</th><th>المستند</th></tr></thead>' +
+      '<tbody>' + previewRows + '</tbody></table></div>';
+
+  document.getElementById('import-content').innerHTML = body;
+  document.getElementById('import-content').style.paddingTop = '0';
+  document.getElementById('import-confirm').style.display = 'inline-flex';
+
+  // Attach listeners
+  const pp = document.getElementById('imp-plant'); if(pp) pp.onchange = e => { importState.plant = e.target.value; };
+  const pi = document.getElementById('imp-item'); if(pi) pi.onchange = e => { importState.item = e.target.value; };
+  const pd = document.getElementById('imp-date'); if(pd) pd.onchange = e => { importState.date = e.target.value; };
+  const pv = document.getElementById('imp-province'); if(pv) pv.onchange = e => { importState.province = e.target.value; };
+
+  importState.plant = defaultPlant;
+  importState.item = defaultItem;
+  importState.date = defaultDate;
+  importState.province = '';
+}
+
+function toggleImportRow(idx, checked){
+  if(!importState) return;
+  importState.parsed.rows[idx].selected = checked;
+  const selCount = importState.parsed.rows.filter(r => r.selected).length;
+  const el = document.getElementById('imp-sel-count');
+  if(el) el.textContent = selCount;
+}
+
+function confirmImport(){
+  if(!importState) return;
+  const {parsed, plant, item, date} = importState;
+  const province = importState.province || '';
+  if(!plant || !item){ toast('يرجى تحديد المعمل والصنف', 'danger'); return; }
+
+  // Ensure plant exists
+  if(DB.settings.plants.indexOf(plant) === -1) DB.settings.plants.push(plant);
+
+  const selectedRows = parsed.rows.filter(r => r.selected);
+  if(!selectedRows.length){ toast('لم يتم اختيار أي صف', 'warning'); return; }
+
+  // Check balance
+  const isW = DB.settings.weightItems.indexOf(item) !== -1;
+  const totalNeeded = selectedRows.reduce((s,r) => s + (isW ? (r.weight||0) : (r.naturalQty||0)), 0);
+  const availableBalance = DB.forms.filter(f => f.plant === plant).reduce((s,f) => s + (Number(f.remainder)||0), 0);
+  const gap = totalNeeded - availableBalance;
+
+  if(gap > 0.0001){
+    const ok = confirm('⚠️ الكمية المطلوبة (' + fmt(totalNeeded) + ') تتجاوز الرصيد المتاح في استمارات "' + plant + '" (' + fmt(availableBalance) + ').\n\n' +
+      'المتبقي بدون رصيد: ' + fmt(gap) + '\n\n' +
+      'هل تريد المتابعة؟ (سيتم تسجيل الحركات مع تنبيه نقص الرصيد)');
+    if(!ok) return;
+  }
+
+  // Insert movements
+  let added = 0;
+  selectedRows.forEach(r => {
+    DB.movements.push({
+      date: date || r.date || today(),
+      plant: plant,
+      item: item,
+      basin: '',
+      car: r.car || '',
+      naturalQty: r.naturalQty || 0,
+      standardQty: r.standardQty || 0,
+      weight: r.weight || 0,
+      driver: r.driver || '',
+      docNumber: r.docNumber || '',
+      loadDate: date || today(),
+      province: province,
+      beneficiary: r.beneficiary || '',
+      notes: 'مستورد من: ' + (importState.filename || '')
+    });
+    added++;
+  });
+
+  recalcDeductions();
+  saveDB();
+  closeModal();
+  importState = null;
+  renderAll();
+
+  toast('✅ تم استيراد ' + added + ' حركة بنجاح', 'success');
+
+  const newAlerts = DB.movements.filter(m => m.alert).length;
+  if(newAlerts > 0) {
+    setTimeout(() => toast('⚠️ ' + newAlerts + ' حركة بدون رصيد كافٍ — راجع صفحة الحركة اليومية', 'warning'), 1500);
+  }
+}
+
+/* ============================================================
+   المتابعة الشهرية
+   ============================================================ */
+function buildMonthGroups(ym){
+  const groups = {};
+  DB.quotas.forEach(q => {
+    const k = q.plant + '||' + q.item;
+    if(!groups[k]) groups[k] = {plant:q.plant, item:q.item, unit:q.unit, daily:q.daily, monthly:q.monthly, type:q.type, natural:0, standard:0, weight:0, trips:0};
+  });
+  DB.movements.filter(m => monthOf(m.date) === ym).forEach(m => {
+    const k = m.plant + '||' + m.item;
+    if(!groups[k]) return;
+    groups[k].natural += Number(m.naturalQty)||0;
+    groups[k].standard += Number(m.standardQty)||0;
+    groups[k].weight += Number(m.weight)||0;
+    groups[k].trips++;
+  });
+  return groups;
+}
+
+function renderMonitoring(){
+  const ym = DB.monitorMonth;
+  const days = daysInMonth(ym);
+  const groups = buildMonthGroups(ym);
+
+  const rows = Object.keys(groups).map(k => {
+    const g = groups[k];
+    const diff = g.natural - g.standard;
+    const remaining = g.monthly - g.natural;
+    const usage = g.monthly ? g.natural / g.monthly : 0;
+    const status = usage > 1 ? 'تجاوز' : usage >= 0.9 ? 'اقتراب الحد' : 'طبيعي';
+    return '<tr><td>' + g.plant + '</td><td>' + g.item + '</td><td>' + g.unit + '</td>' +
+      '<td class="cell-num">' + fmt(g.daily,0) + '</td><td class="cell-num">' + fmt(g.monthly,0) + '</td>' +
+      '<td class="cell-num">' + fmt(g.natural) + '</td><td class="cell-num">' + fmt(g.standard) + '</td>' +
+      '<td class="cell-num">' + fmt(g.weight) + '</td>' +
+      '<td class="cell-num" style="color:' + (diff<0?'var(--danger)':'inherit') + '">' + fmt(diff) + '</td>' +
+      '<td class="cell-num" style="color:' + (remaining<0?'var(--danger)':'inherit') + '">' + fmt(remaining) + '</td>' +
+      '<td class="cell-num">' + (usage*100).toFixed(1) + '%</td><td>' + badge(status) + '</td>' +
+      '<td class="cell-num">' + g.trips + '</td></tr>';
+  }).join('');
+
+  document.getElementById('page-monitoring').innerHTML =
+    '<div class="page-head"><div><h2>المتابعة الشهرية</h2></div>' +
+    '<div class="toolbar" style="margin:0"><input type="month" id="mon-month" value="' + ym + '">' +
+    '<button class="btn btn-secondary" onclick="exportMonitoringExcel()">📊 Excel</button>' +
+    '<button class="btn btn-secondary" onclick="printPage()">🖨️ طباعة</button></div></div>' +
+    '<div class="table-wrap"><table><thead><tr>' +
+    '<th>المعمل</th><th>الصنف</th><th>الوحدة</th><th>اليومي</th><th>الشهري</th>' +
+    '<th>طبيعية</th><th>قياسية</th><th>الوزن</th><th>الفرق</th><th>الباقي</th><th>النسبة</th><th>الحالة</th><th>الرحلات</th></tr></thead>' +
+    '<tbody>' + (rows || '<tr><td colspan="13" class="empty">لا توجد بيانات</td></tr>') + '</tbody></table></div>';
+
+  const s = document.getElementById('mon-month'); if(s) s.onchange = e => { DB.monitorMonth = e.target.value; saveDB(); renderMonitoring(); };
+}
+
+function exportMonitoringExcel(){
+  const ym = DB.monitorMonth;
+  const groups = buildMonthGroups(ym);
+  const aoa = [['المعمل','الصنف','الوحدة','اليومي','الشهري','طبيعية','قياسية','الوزن','الفرق','الباقي','النسبة','الرحلات']];
+  Object.keys(groups).forEach(k => {
+    const g = groups[k];
+    const usage = g.monthly ? g.natural / g.monthly : 0;
+    aoa.push([g.plant,g.item,g.unit,g.daily,g.monthly,g.natural,g.standard,g.weight,g.natural-g.standard,g.monthly-g.natural,(usage*100).toFixed(1)+'%',g.trips]);
+  });
+  exportExcel([{name:'المتابعة', aoa}], 'المتابعة_' + ym);
+}
+
+/* ============================================================
+   التقارير
+   ============================================================ */
+function getFilteredMovements(){
+  return DB.movements.filter(m => {
+    if(reportFilter.from && String(m.date||'') < reportFilter.from) return false;
+    if(reportFilter.to && String(m.date||'') > reportFilter.to) return false;
+    if(reportFilter.plant && m.plant !== reportFilter.plant) return false;
+    if(reportFilter.item && m.item !== reportFilter.item) return false;
+    if(reportFilter.province && m.province !== reportFilter.province) return false;
+    if(reportFilter.driver && m.driver !== reportFilter.driver) return false;
+    return true;
+  });
+}
+
+function aggregateBy(movs, key){
+  const agg = {};
+  movs.forEach(m => {
+    const k = m[key] || '(غير محدد)';
+    if(!agg[k]) agg[k] = {name:k, trips:0, natural:0, standard:0, weight:0, forms:{}, plants:{}};
+    agg[k].trips++;
+    agg[k].natural += Number(m.naturalQty)||0;
+    agg[k].standard += Number(m.standardQty)||0;
+    agg[k].weight += Number(m.weight)||0;
+    if(m.usedForms){ String(m.usedForms).split('+').forEach(f => { agg[k].forms[f.trim()] = true; }); }
+    if(m.plant){ agg[k].plants[m.plant] = (agg[k].plants[m.plant]||0) + 1; }
+  });
+  return Object.keys(agg).map(k => {
+    const d = agg[k];
+    // Dominant plant
+    let maxP = '-', maxC = 0;
+    Object.keys(d.plants).forEach(p => { if(d.plants[p] > maxC){ maxC = d.plants[p]; maxP = p; } });
+    d.dominantPlant = maxP;
+    d.plantsList = Object.keys(d.plants).join(', ');
+    return d;
+  }).sort((a,b) => b.trips - a.trips);
+}
+
+function setReportTab(t){ reportTab = t; renderReports(); }
+function resetReportFilters(){ reportFilter = {from:'',to:'',plant:'',item:'',province:'',driver:''}; renderReports(); }
+
+function renderReports(){
+  const movs = getFilteredMovements();
+  const provinces = DB.settings.provinces || [];
+  const drivers = [];
+  const seen = {};
+  DB.movements.forEach(m => { if(m.driver && !seen[m.driver]){ seen[m.driver]=true; drivers.push(m.driver); } });
+  drivers.sort();
+
+  const tabCfg = {
+    plant: {label:'حسب المعمل', key:'plant', col:'المعمل'},
+    item: {label:'حسب الصنف', key:'item', col:'الصنف'},
+    province: {label:'حسب المحافظة', key:'province', col:'المحافظة'},
+    driver: {label:'حسب السائق', key:'driver', col:'السائق'}
+  };
+
+  const curKey = tabCfg[reportTab].key;
+  const aggregated = aggregateBy(movs, curKey);
+
+  const plantsTop = aggregateBy(movs, 'plant').slice(0, 3);
+  const driversTop = aggregateBy(movs, 'driver').slice(0, 3);
+
+  // Active cards
+  let activeCards = '<div class="active-cards">';
+  activeCards += '<div class="active-card"><h4>🏭 أكثر المعامل نشاطاً</h4>';
+  if(plantsTop.length){
+    activeCards += '<ol>' + plantsTop.map(p => '<li><b>' + p.name + '</b> — ' + p.trips + ' رحلة <span class="metric">' + fmt(p.natural) + ' وحدة</span></li>').join('') + '</ol>';
+  } else activeCards += '<p style="color:var(--muted);font-size:.85rem">لا توجد بيانات</p>';
+  activeCards += '</div>';
+
+  activeCards += '<div class="active-card"><h4>🚚 أكثر السائقين نشاطاً</h4>';
+  if(driversTop.length){
+    activeCards += '<ol>' + driversTop.map(d =>
+      '<li><b>' + d.name + '</b>' +
+      (d.dominantPlant && d.dominantPlant !== '-' ? ' <span class="plant-tag">🏭 ' + d.dominantPlant + '</span>' : '') +
+      ' — ' + d.trips + ' رحلة <span class="metric">' + fmt(d.natural) + ' وحدة</span></li>'
+    ).join('') + '</ol>';
+  } else activeCards += '<p style="color:var(--muted);font-size:.85rem">لا توجد بيانات</p>';
+  activeCards += '</div></div>';
+
+  const rows = aggregated.map(a => {
+    const diff = a.natural - a.standard;
+    const formsList = Object.keys(a.forms).join(', ') || '-';
+    const plantCol = (reportTab === 'driver') ? '<td><span class="badge badge-info">' + (a.dominantPlant||'-') + '</span></td>' : '';
+    return '<tr><td>' + a.name + '</td>' + plantCol +
+      '<td class="cell-num">' + a.trips + '</td>' +
+      '<td class="cell-num">' + fmt(a.natural) + '</td>' +
+      '<td class="cell-num">' + fmt(a.standard) + '</td>' +
+      '<td class="cell-num">' + fmt(a.weight) + '</td>' +
+      '<td class="cell-num" style="color:' + (diff<0?'var(--danger)':'inherit') + '">' + fmt(diff) + '</td>' +
+      '<td style="font-size:.72rem;max-width:200px;white-space:normal">' + formsList + '</td></tr>';
+  }).join('');
+
+  const plantOpts = '<option value="">كل المعامل</option>' + DB.settings.plants.map(p => '<option' + (p===reportFilter.plant?' selected':'') + '>' + p + '</option>').join('');
+  const itemOpts = '<option value="">كل الأصناف</option>' + DB.settings.items.map(p => '<option' + (p===reportFilter.item?' selected':'') + '>' + p + '</option>').join('');
+  const provOpts = '<option value="">كل المحافظات</option>' + provinces.map(p => '<option' + (p===reportFilter.province?' selected':'') + '>' + p + '</option>').join('');
+  const driverOpts = '<option value="">كل السائقين</option>' + drivers.map(p => '<option' + (p===reportFilter.driver?' selected':'') + '>' + p + '</option>').join('');
+
+  const tabsHTML = Object.keys(tabCfg).map(k =>
+    '<button class="tab-btn ' + (reportTab===k?'active':'') + '" onclick="setReportTab(\'' + k + '\')">' + tabCfg[k].label + '</button>'
+  ).join('');
+
+  const driverPlantCol = (reportTab === 'driver') ? '<th>المعمل</th>' : '';
+
+  document.getElementById('page-reports').innerHTML =
+    '<div class="page-head"><div><h2>التقارير</h2></div>' +
+    '<div class="toolbar" style="margin:0">' +
+    '<button class="btn btn-success" onclick="exportMostActiveExcel()">🏆 الأكثر نشاطاً</button>' +
+    '<button class="btn btn-secondary" onclick="exportFullDB()">📊 Excel كامل</button>' +
+    '<button class="btn" onclick="exportCurrentReport()">⬇️ Excel التقرير</button>' +
+    '<button class="btn" onclick="printCurrentReport()">🖨️ طباعة</button></div></div>' +
+    '<div class="filter-box"><label>من:</label><input type="date" id="rep-from" value="' + reportFilter.from + '">' +
+    '<label>إلى:</label><input type="date" id="rep-to" value="' + reportFilter.to + '">' +
+    '<select id="rep-plant">' + plantOpts + '</select>' +
+    '<select id="rep-item">' + itemOpts + '</select>' +
+    '<select id="rep-province">' + provOpts + '</select>' +
+    '<select id="rep-driver">' + driverOpts + '</select>' +
+    '<button class="btn btn-secondary btn-sm" onclick="resetReportFilters()">🔄 إعادة تعيين</button>' +
+    '<span style="color:var(--muted);font-size:.8rem;margin-right:auto">' + movs.length + ' حركة</span></div>' +
+    activeCards +
+    '<div class="tabs">' + tabsHTML + '</div>' +
+    '<div class="table-wrap"><table><thead><tr>' +
+    '<th>' + tabCfg[reportTab].col + '</th>' + driverPlantCol +
+    '<th>عدد الرحلات</th><th>طبيعية</th><th>قياسية</th><th>الوزن</th><th>الفرق</th><th>الاستمارات</th>' +
+    '</tr></thead><tbody>' + (rows || '<tr><td colspan="8" class="empty">لا توجد بيانات</td></tr>') + '</tbody></table></div>';
+
+  ['from','to','plant','item','province','driver'].forEach(k => {
+    const el = document.getElementById('rep-' + k);
+    if(el) el.onchange = e => { reportFilter[k] = e.target.value; renderReports(); };
+  });
+}
+
+function reportToAoa(){
+  const movs = getFilteredMovements();
+  const tabCfg = {plant:{col:'المعمل'}, item:{col:'الصنف'}, province:{col:'المحافظة'}, driver:{col:'السائق'}};
+  const curKey = reportTab;
+  const aggregated = aggregateBy(movs, curKey);
+
+  const headers = [tabCfg[reportTab].col];
+  if(reportTab === 'driver') headers.push('المعمل');
+  headers.push('عدد الرحلات','طبيعية','قياسية','الوزن','الفرق','الاستمارات');
+
+  const aoa = [headers];
+  aggregated.forEach(a => {
+    const row = [a.name];
+    if(reportTab === 'driver') row.push(a.dominantPlant || '-');
+    row.push(a.trips, a.natural, a.standard, a.weight, a.natural - a.standard, Object.keys(a.forms).join(', '));
+    aoa.push(row);
+  });
+  return {aoa, label: tabCfg[reportTab].col};
+}
+
+function exportCurrentReport(){
+  const data = reportToAoa();
+  exportExcel([{name:'تقرير ' + data.label, aoa: data.aoa}], 'تقرير_' + reportTab + '_' + today());
+}
+
+function printCurrentReport(){
+  const data = reportToAoa();
+  let html = '<h2>' + data.label + '</h2><table><thead><tr>' + data.aoa[0].map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+  data.aoa.slice(1).forEach(r => { html += '<tr>' + r.map(c => '<td>' + (c==null?'':c) + '</td>').join('') + '</tr>'; });
+  html += '</tbody></table>';
+
+  const movs = getFilteredMovements();
+  const plantsTop = aggregateBy(movs, 'plant').slice(0, 3);
+  const driversTop = aggregateBy(movs, 'driver').slice(0, 3);
+
+  let active = '<h2>🏭 أكثر المعامل نشاطاً</h2><ol style="padding-right:24px">';
+  plantsTop.forEach(p => active += '<li><b>' + p.name + '</b> — ' + p.trips + ' رحلة (' + fmt(p.natural) + ' وحدة)</li>');
+  active += '</ol><h2>🚚 أكثر السائقين نشاطاً</h2><ol style="padding-right:24px">';
+  driversTop.forEach(d => active += '<li><b>' + d.name + '</b> — ' + d.trips + ' رحلة (' + fmt(d.natural) + ' وحدة)' + (d.dominantPlant ? ' — المعمل: ' + d.dominantPlant : '') + '</li>');
+  active += '</ol>';
+
+  printContent('تقرير ' + data.label, html + active,
+    'عدد الحركات: ' + movs.length + (reportFilter.from ? ' | من: ' + reportFilter.from : '') + (reportFilter.to ? ' | إلى: ' + reportFilter.to : ''));
+}
+
+function exportMostActiveExcel(){
+  const movs = getFilteredMovements();
+  const plants = aggregateBy(movs, 'plant');
+  const drivers = aggregateBy(movs, 'driver');
+
+  const plantsAoa = [['الترتيب','المعمل','عدد الرحلات','طبيعية','قياسية','الوزن','الفرق']];
+  plants.forEach((p,i) => plantsAoa.push([i+1, p.name, p.trips, p.natural, p.standard, p.weight, p.natural - p.standard]));
+
+  const driversAoa = [['الترتيب','السائق','المعمل','عدد الرحلات','طبيعية','قياسية','الوزن','الفرق']];
+  drivers.forEach((d,i) => driversAoa.push([i+1, d.name, d.dominantPlant||'-', d.trips, d.natural, d.standard, d.weight, d.natural - d.standard]));
+
+  exportExcel([
+    {name:'أكثر المعامل نشاطاً', aoa: plantsAoa},
+    {name:'أكثر السائقين نشاطاً', aoa: driversAoa}
+  ], 'الأكثر_نشاطاً_' + today());
+}
+
+/* ============================================================
+   الاختبارات
+   ============================================================ */
+function renderTests(){
+  const totalRemainder = DB.forms.reduce((s,f)=>s+f.remainder,0);
+  const negativeQty = DB.movements.filter(m => Number(m.naturalQty) < 0).length;
+  const pending = DB.forms.filter(f => f.transferState === 'قيد الانتظار').length;
+  const noQuotaMatch = DB.forms.filter(f => !DB.quotas.some(q => q.plant === f.plant && q.item === f.item)).length;
+  const noNat = DB.movements.filter(m => !m.naturalQty).length;
+  const noBen = DB.movements.filter(m => !m.beneficiary).length;
+  const negDiff = DB.movements.filter(m => (Number(m.naturalQty)||0) - (Number(m.standardQty)||0) < 0).length;
+  const weightGT = DB.movements.filter(m => Number(m.weight) > Number(m.naturalQty)).length;
+  const depleted = DB.forms.filter(f => f.status === 'منتهية').length;
+  const alerts = DB.movements.filter(m => m.alert).length;
+
+  const agg = {};
+  DB.movements.filter(m => monthOf(m.date) === DB.monitorMonth).forEach(m => {
+    const k = m.plant + '||' + m.item;
+    agg[k] = (agg[k]||0) + (Number(m.naturalQty)||0);
+  });
+  let overQuota = 0;
+  Object.keys(agg).forEach(k => {
+    const parts = k.split('||');
+    const q = DB.quotas.find(x => x.plant === parts[0] && x.item === parts[1]);
+    if(q && agg[k] > q.monthly) overQuota++;
+  });
+
+  const tests = [
+    {name:'مجموع الباقي', val: totalRemainder, pass: totalRemainder === 0},
+    {name:'خلايا سالبة', val: negativeQty, pass: negativeQty === 0},
+    {name:'تجاوزات المخصص', val: overQuota, pass: overQuota === 0},
+    {name:'استمارات معلقة', val: pending, pass: pending === 0},
+    {name:'استمارات بدون حصة', val: noQuotaMatch, pass: noQuotaMatch === 0},
+    {name:'حركات بدون كمية', val: noNat, pass: noNat === 0},
+    {name:'حركات بدون جهة', val: noBen, pass: noBen === 0},
+    {name:'فرق سالب', val: negDiff, pass: negDiff === 0},
+    {name:'وزن > طبيعية', val: weightGT, pass: weightGT === 0},
+    {name:'استمارات منتهية', val: depleted, pass: depleted === 0},
+    {name:'حركات بدون رصيد', val: alerts, pass: alerts === 0}
+  ];
+
+  document.getElementById('page-tests').innerHTML =
+    '<div class="page-head"><div><h2>الاختبارات</h2></div></div>' +
+    '<div class="table-wrap"><table><thead><tr><th>الاختبار</th><th>القيمة</th><th>النتيجة</th></tr></thead><tbody>' +
+    tests.map(t => '<tr><td>' + t.name + '</td><td class="cell-num">' + fmt(t.val) + '</td>' +
+      '<td>' + (t.pass?'<span class="badge badge-success">✅ ناجح</span>':'<span class="badge badge-danger">❌ تحقق</span>') + '</td></tr>').join('') +
+    '</tbody></table></div>' +
+    '<div class="toolbar" style="margin-top:16px">' +
+    '<button class="btn btn-secondary" onclick="recalcAndRender()">🔄 إعادة احتساب</button>' +
+    '<button class="btn btn-danger" onclick="resetData()">♻️ استعادة تجريبية</button></div>';
+}
+
+function resetData(){
+  if(!confirm('حذف كل البيانات واستعادة التجريبية؟')) return;
+  DB = clone(DEFAULTS);
+  recalcDeductions();
+  saveDB();
+  renderAll();
+  toast('تمت الاستعادة', 'info');
+}
+
+/* ============================================================
+   التصيير والإقلاع
+   ============================================================ */
+function renderAll(){
+  try { renderDashboard(); } catch(e){ console.error('dashboard', e); }
+  try { renderQuotas(); } catch(e){ console.error('quotas', e); }
+  try { renderForms(); } catch(e){ console.error('forms', e); }
+  try { renderMovements(); } catch(e){ console.error('movements', e); }
+  try { renderMonitoring(); } catch(e){ console.error('monitoring', e); }
+  try { renderReports(); } catch(e){ console.error('reports', e); }
+  try { renderTests(); } catch(e){ console.error('tests', e); }
+}
+
+// Expose
+window.exportFullDB = exportFullDB;
+window.printPage = printPage;
+window.openQuotaModal = openQuotaModal;
+window.deleteQuota = deleteQuota;
+window.exportQuotasExcel = exportQuotasExcel;
+window.openFormModal = openFormModal;
+window.deleteForm = deleteForm;
+window.exportFormsExcel = exportFormsExcel;
+window.recalcAndRender = recalcAndRender;
+window.openMovementModal = openMovementModal;
+window.deleteMovement = deleteMovement;
+window.exportMovementsExcel = exportMovementsExcel;
+window.openImportModal = openImportModal;
+window.toggleImportRow = toggleImportRow;
+window.confirmImport = confirmImport;
+window.exportMonitoringExcel = exportMonitoringExcel;
+window.setReportTab = setReportTab;
+window.resetReportFilters = resetReportFilters;
+window.exportMostActiveExcel = exportMostActiveExcel;
+window.exportCurrentReport = exportCurrentReport;
+window.printCurrentReport = printCurrentReport;
+window.resetData = resetData;
+window.closeModal = closeModal;
+
+window.addEventListener('error', e => console.error('Global:', e.message));
+
+(function init(){
+  try {
+    loadDB();
+    setupNav();
+    renderAll();
+    console.log('%c✅ النظام جاهز', 'color:#10b981;font-weight:bold;font-size:14px');
+  } catch(e){
+    console.error(e);
+    document.body.innerHTML = '<div style="padding:40px;font-family:Tahoma;color:#ef4444;direction:rtl">' +
+      '<h2>⚠️ خطأ</h2><pre style="background:#1e293b;padding:20px;color:#e2e8f0;border-radius:8px">' + e.message + '</pre></div>';
+  }
+})();
+</script>
+</body>
+</html>
